@@ -174,12 +174,46 @@ pm cron-health
 
 # 4. 태스크 요약 동기화 (필요 시)
 pm sync-summary
-
-# 5. tmux 세션 상태 확인 (pane 수 비정상 감지)
+### 4. 검증
+```bash
 ~/.hermes/skills/project-management/pm-orchestration/scripts/check_tmux_panes.sh
 ```
 
----
+### 5. Claude 프로세스 추적 (진단용)
+
+PM이 여러 tmux 세션의 Claude 프로세스를 추적해야 할 때:
+
+```bash
+# 전체 Claude 프로세스 상세 분석
+ps aux | grep -E "claude|npx" | grep -v grep | awk '{printf "PID: %s, MEM: %s%%, CPU: %s%%, CMD: %s\n", $2, $4, $3, $11}'
+
+# tmux pane별 실행 프로세스 확인
+for session in PM bea insung stock music; do
+    echo "[$session]"
+    for i in {1..4}; do
+        pane_pid=$(tmux display-message -p -t "$session:1.$i" "#{pane_pid}" 2>/dev/null)
+        if [ -n "$pane_pid" ]; then
+            child_pids=$(pgrep -P "$pane_pid" -f claude 2>/dev/null)
+            if [ -n "$child_pids" ]; then
+                for pid in $child_pids; do
+                    cmd=$(ps -p "$pid" -o comm= 2>/dev/null)
+                    mem=$(ps -p "$pid" -o %mem= 2>/dev/null)
+                    echo "  Pane $i: PID=$pid, MEM=${mem}%, CMD=$cmd"
+                done
+            else
+                top_cmd=$(ps -p "$pane_pid" -o comm= 2>/dev/null)
+                echo "  Pane $i: $top_cmd (no claude)"
+            fi
+        fi
+    done
+done
+```
+
+**문제**: PM이 tmux 세션 안에서 실행 중인지 헷갈릴 때
+- 현재 세션 확인: `tmux display-message -p "#S:#I.#P"`
+- 결과: `PM:1.3` (PM 세션 pane 3)
+
+## 예방 조치
 
 ## 주간 리뷰
 
