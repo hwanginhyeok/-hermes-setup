@@ -1,0 +1,108 @@
+# Hermes Agent Config for Ollama (Working Configuration)
+# 
+# This is a complete config.yaml snippet for using Ollama models with Hermes Agent.
+# Replace the relevant sections in your ~/.hermes/config.yaml
+#
+# CRITICAL: Hermes Agent does NOT recognize 'ollama' as a built-in provider.
+# Use 'provider: custom' with explicit base_url configuration.
+
+# Main model configuration
+model:
+  provider: custom                    # Use 'custom', NOT 'ollama'
+  default: qwen2.5:3b                 # Or llama3.2, gemma3:4b
+  context_length: 64000               # Override 32K minimum requirement
+
+# Custom provider definition
+providers:
+  custom:
+    base_url: http://localhost:11434/v1
+    api: http://localhost:11434/v1    # Include both fields
+    api_key: ollama
+
+# ALL auxiliary models MUST be configured (compression, vision, etc.)
+auxiliary:
+  vision:
+    provider: custom
+    model: qwen2.5:3b
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    context_length: 64000
+    timeout: 120
+    extra_body: {}
+    
+  web_extract:
+    provider: custom
+    model: qwen2.5:3b
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    context_length: 64000
+    timeout: 360
+    extra_body: {}
+    
+  compression:
+    provider: custom
+    model: qwen2.5:3b
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    context_length: 64000
+    timeout: 120
+    extra_body: {}
+    
+  session_search:
+    provider: custom
+    model: qwen2.5:3b
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    context_length: 64000
+    timeout: 30
+    extra_body: {}
+    max_concurrency: 3
+    
+  skills_hub:
+    provider: custom
+    model: qwen2.5:3b
+    base_url: http://localhost:11434/v1
+    api_key: ollama
+    context_length: 64000
+    timeout: 30
+    extra_body: {}
+
+# Delegation (for subagent tasks)
+delegation:
+  model: qwen2.5:3b
+  provider: custom
+  base_url: http://localhost:11434/v1
+  api_key: ollama
+  context_length: 64000
+  inherit_mcp_toolsets: true
+  max_iterations: 50
+  child_timeout_seconds: 600
+  reasoning_effort: ''
+  max_concurrent_children: 3
+  max_spawn_depth: 1
+  orchestrator_enabled: true
+  subagent_auto_approve: false
+
+# Alternative: Environment Variable Method (More Reliable)
+# ============================================================
+# If the YAML configuration above doesn't work, use these environment variables:
+#
+#   export OPENAI_BASE_URL=http://localhost:11434/v1
+#   export OPENAI_API_KEY=ollama
+#
+# Then set provider to 'auto' in config.yaml:
+#
+#   model:
+#     provider: auto
+#     default: qwen2.5:3b
+#     context_length: 64000
+#
+# This is the most reliable method as of Hermes v0.12.0
+
+# Model Selection Notes
+# =====================
+# qwen2.5:3b  - 1.9GB, fastest, Korean support good, needs context_length override
+# llama3.2    - 2.0GB, balanced, better English
+# gemma3:4b   - 3.3GB, best quality, multilingual
+#
+# For production Hermes usage, consider 7B+ models for better tool use performance.

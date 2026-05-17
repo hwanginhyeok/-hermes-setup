@@ -1,0 +1,11 @@
+# 백업 파일
+backup/
+
+# 임시 파일
+*.tmp
+*.swp
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db

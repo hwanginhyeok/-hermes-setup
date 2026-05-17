@@ -1,0 +1,10 @@
+# PM 최적화 Cron 스케줄
+
+# 태스크 요약 동기화 (매일 00:00)
+0 0 * * * /usr/bin/python3 /home/window11/project-manager/scripts/sync_task_summary.py >> ~/.pm_logs/sync_summary.log 2>&1
+
+# Cron 건강 모니터링 (매 6시간)
+0 */6 * * * /usr/bin/python3 /home/window11/project-manager/scripts/cron_health_monitor.py >> ~/.pm_logs/cron_health.log 2>&1
+
+# Cron 건강 모니터링 + 텔레그램 알림 (매일 09:00)
+0 9 * * * /usr/bin/python3 /home/window11/project-manager/scripts/cron_health_monitor.py --telegram >> ~/.pm_logs/cron_health_alert.log 2>&1
