@@ -1,0 +1,64 @@
+# 한복 (Hanbok) - Korean traditional elegant theme
+# Korea's traditional colors with modern sophistication
+
+name: hanbok
+description: Korean traditional elegance — obangjeong (five directional colors)
+
+colors:
+  # Traditional Korean colors
+  banner_border: "#C9584C"        # Traditional red (juhong)
+  banner_title: "#FFD700"         # Gold (hwang-jong)
+  banner_accent: "#3B8BBA"        |  # Blue (cheong-jong)
+  banner_dim: "#6B8E23"           # Yellow green (nok-cha)
+  banner_text: "#F5F5DC"          |  # Beige (cream)
+
+  ui_accent: "#3B8BBA"            |  # Cool blue accent
+  ui_label: "#C9584C"             |  # Traditional red label
+  ui_ok: "#50C878"                # Green (nok-cha)
+  ui_error: "#E74C3C"             # Clear error red
+  ui_warn: "#F39C12"              # Orange warning
+
+  prompt: "#F5F5DC"                # Cream text
+  input_rule: "#C9584C"           # Red rule
+  response_border: "#FFD700"      # Gold border
+
+  status_bar_bg: "#1A1A1A"        # Dark background
+  status_bar_text: "#D3D3D3"      # Light gray text
+  status_bar_strong: "#FFD700"    # Gold highlight
+  status_bar_dim: "#808080"       # Dim gray
+  status_bar_good: "#50C878"      # Green
+  status_bar_warn: "#F39C12"      # Orange
+  status_bar_bad: "#E74C3C"       # Red
+  status_bar_critical: "#FF6B6B"  # Bright red
+
+  session_label: "#3B8BBA"        # Blue session label
+  session_border: "#6B8E23"       # Green border
+
+spinner:
+  waiting_faces:
+    - "(ᄒ)"
+    - "(ᄒᄒ)"
+    - "(★)"
+    - "(♤)"
+  thinking_faces:
+    - "(ᆞ)"
+    - "(∼)"
+    - "(♡)"
+  thinking_verbs:
+    - "생각 중"
+    - "준비 중"
+    - "찾는 중"
+    - "정리 중"
+  wings:
+    - ["【", "】"]
+    - ["♧", "♧"]
+
+branding:
+  agent_name: "헤르메스 AI"
+  welcome: "헤르메스 AI에 오신 것을 환영합니다! 메시지를 입력하시거나 /help를 입력하세요."
+  goodbye: "안녕히 가세요! ⚕"
+  response_label: " ⚕ 헤르메스 "
+  prompt_symbol: "❯"
+  help_header: "(^_^)? 사용 가능한 명령어"
+
+tool_prefix: "┊"

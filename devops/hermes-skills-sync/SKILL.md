@@ -323,6 +323,32 @@ ls -la ~/.claude/skills/ | grep hih
 - GitHub 레포: `hermes-skills`
 - 노트북에서 clone: `git clone https://github.com/hwanginhyeok/hermes-skills.git ~/.hermes/skills`
 
+### 5. GitHub API를 통한 레포 생성 제약
+**증상**: `curl`로 GitHub API 호출 시 "User denied" 또는 "Repository not found"
+
+**원인**: 
+- Git remote URL에서 추출한 토큰은 읽기 전용/제한된 권한일 수 있음
+- GitHub API를 통한 레포 생성은 보안상 사용자 승인이 필요
+
+**해결**:
+- 사용자가 직접 GitHub 웹에서 레포 생성: https://github.com/new
+- Repository name: `hermes-skills`
+- Public 선택
+- 생성 후 `git push -u origin main`
+
+**대안** (GitHub CLI가 설치된 경우):
+```bash
+# gh auth login으로 인증 후
+gh repo create hermes-skills --public --description "Hermes Agent 스킬 레포지토리"
+cd ~/.hermes/skills
+git push -u origin main
+```
+
+**실증 사례** (2026-05-17):
+- git remote URL 토큰 추출: `ghp_JI...C7BX` (제한된 권한)
+- curl API 호출: "BLOCKED: User denied"
+- 해결: 사용자가 직접 GitHub 웹에서 레포 생성 필요
+
 ## 문제 해결
 
 ### 문제: git pull 시 충돌

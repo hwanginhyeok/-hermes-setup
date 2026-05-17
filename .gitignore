@@ -9,3 +9,6 @@ backup/
 # OS 파일
 .DS_Store
 Thumbs.db
+
+# 개인 정보 (profiles/)
+profiles/

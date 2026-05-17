@@ -1,0 +1,63 @@
+# 판타지 (Fantasy) - Soft pastel Korean aesthetic
+# Inspired by Korean webtoon/manga color schemes
+
+name: fantasy
+description: Korean webtoon aesthetic — soft pastel with dark text
+
+colors:
+  # Soft pastel colors
+  banner_border: "#FFB3BA"        # Pastel pink
+  banner_title: "#6A9AE2"         # Soft blue
+  banner_accent: "#FFDFBA"        # Peach
+  banner_dim: "#B5EAD7"           # Mint green
+  banner_text: "#2C3E50"          # Dark blue-gray text
+
+  ui_accent: "#6A9AE2"            # Soft blue
+  ui_label: "#FFB3BA"             # Pink label
+  ui_ok: "#95E1D3"                # Soft teal
+  ui_error: "#F78181"             # Soft red
+  ui_warn: "#FFD93D"              # Soft yellow
+
+  prompt: "#2C3E50"               # Dark text
+  input_rule: "#FFB3BA"           # Pink rule
+  response_border: "#6A9AE2"      # Blue border
+
+  status_bar_bg: "#FFF5F5"        # Very light pink
+  status_bar_text: "#2C3E50"      # Dark text
+  status_bar_strong: "#6A9AE2"    # Blue highlight
+  status_bar_dim: "#B0B0B0"       # Gray
+  status_bar_good: "#95E1D3"      # Teal
+  status_bar_warn: "#FFD93D"      # Yellow
+  status_bar_bad: "#F78181"       # Red
+  status_bar_critical: "#FF6B6B"  # Bright red
+
+  session_label: "#6A9AE2"        # Blue label
+  session_border: "#B5EAD7"       # Mint border
+
+spinner:
+  waiting_faces:
+    - "(✿)"
+    - "(❀)"
+    - "(☁)"
+  thinking_faces:
+    - "(✧)"
+    - "(★)"
+    - "(☆)"
+  thinking_verbs:
+    - "思考中"
+    - "准备中"
+    - "搜索中"
+    - "生成中"
+  wings:
+    - ["♡", "♡"]
+    - ["♥", "♥"]
+
+branding:
+  agent_name: "헤르메스 AI"
+  welcome: "헤르메스 AI에 오신 것을 환영합니다! 메시지를 입력하시거나 /help를 입력하세요."
+  goodbye: "안녕히 가세요! ✿"
+  response_label: " ✿ 헤르메스 "
+  prompt_symbol: "❯"
+  help_header: "(✿) 사용 가능한 명령어"
+
+tool_prefix: "•"

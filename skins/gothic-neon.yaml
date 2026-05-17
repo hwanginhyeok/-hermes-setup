@@ -1,0 +1,63 @@
+# 고딕 네온 (Gothic Neon) - Modern Korean cyberpunk theme
+# Dark background with vibrant neon accents - popular in Korean web design
+
+name: gothic-neon
+description: Korean cyberpunk — dark with vibrant neon accents
+
+colors:
+  # Neon cyberpunk colors
+  banner_border: "#FF006E"        # Neon pink
+  banner_title: "#00F5FF"         # Cyan neon
+  banner_accent: "#FF00FF"        # Magenta
+  banner_dim: "#8B00FF"           # Purple
+  banner_text: "#FFFFFF"          # Pure white
+
+  ui_accent: "#00F5FF"            # Cyan accent
+  ui_label: "#FF00FF"             # Magenta label
+  ui_ok: "#39FF14"                # Neon green
+  ui_error: "#FF006E"             # Neon pink error
+  ui_warn: "#FFD700"              # Gold warning
+
+  prompt: "#00F5FF"               # Cyan prompt
+  input_rule: "#FF006E"           # Pink rule
+  response_border: "#00F5FF"      # Cyan border
+
+  status_bar_bg: "#0A0A0A"        # Near black
+  status_bar_text: "#E0E0E0"      # Light gray
+  status_bar_strong: "#00F5FF"    # Cyan highlight
+  status_bar_dim: "#808080"       # Dim gray
+  status_bar_good: "#39FF14"      # Neon green
+  status_bar_warn: "#FFD700"      # Gold
+  status_bar_bad: "#FF6600"       # Orange
+  status_bar_critical: "#FF006E"  # Neon pink
+
+  session_label: "#FF00FF"        # Magenta label
+  session_border: "#8B00FF"       # Purple border
+
+spinner:
+  waiting_faces:
+    - "(⚡)"
+    - "(◈)"
+    - "(✦)"
+  thinking_faces:
+    - "(◉)"
+    - "(◎)"
+    - "(✪)"
+  thinking_verbs:
+    - "분석 중"
+    - "처리 중"
+    - "검색 중"
+    - "생성 중"
+  wings:
+    - ["◄", "►"]
+    - ["▴", "▾"]
+
+branding:
+  agent_name: "헤르메스"
+  welcome: "헤르메스에 오신 것을 환영합니다! 메시지를 입력하시거나 /help를 입력하세요."
+  goodbye: "안녕히 가세요! ⚡"
+  response_label: " ⚡ 헤르메스 "
+  prompt_symbol: "▶"
+  help_header: "(◈) 명령어"
+
+tool_prefix: "⚡"
