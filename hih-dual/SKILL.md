@@ -32,8 +32,8 @@ PM 검증이 백스톱이라 reviewer 4.6의 거짓 우려도 잡힘 (PM이 grep
 
 | pane | 평상시 | /hih-dual 사이클 시 |
 |---|---|---|
-| pane 1 | Sonnet 4.6 1M | 그대로 (builder) |
-| pane 2 | **GLM 5.1** (default) | **4.6 임시 전환** (빠른 reviewer 응답). 사이클 끝나면 5.1 복귀 |
+| pane 1 | **Opus 4.8** (default) | 그대로 (builder) |
+| pane 2 | **GLM 5.0** (default) | **5.0 사용** (최신 버전). 전환 불필요 |
 
 ## 전제 조건
 
@@ -51,18 +51,19 @@ PANES=$(tmux list-panes -t "$SESSION" | wc -l)
 [ "$PANES" -lt 2 ] && { echo "❌ pane 2개 필요"; exit 1; }
 ```
 
-## Step 1: pane 2를 4.6으로 임시 전환
+## Step 1: pane 2 모델 확인
 
 ```bash
 # pane 2 현재 모델 검증
-P2_MODEL=$(tmux capture-pane -t "${SESSION}.2" -p | grep -oE 'glm-[0-9.]+|GLM-[0-9.]+' | head -1)
+P2_MODEL=$(tmux capture-pane -t "${SESSION}.2" -p | grep -oE "glm-[0-9.]+|GLM-[0-9.]+" | head -1)
 echo "pane 2 현재 모델: $P2_MODEL"
 
-# 5.1이면 4.6으로 전환 (default 5.1 가정)
-if echo "$P2_MODEL" | grep -q "5.1"; then
-  tmux send-keys -t "${SESSION}.2" "/model glm-4.6" Enter
-  sleep 4
-  echo "✅ pane 2 → GLM 4.6 (사이클 모드)"
+# GLM 5.0인지 확인 (default 상태)
+if echo "$P2_MODEL" | grep -q "5.0"; then
+  echo "✅ pane 2 → GLM 5.0 (default, 사이클 모드)"
+else
+  echo "⚠️  pane 2 모델이 GLM 5.0이 아님: $P2_MODEL"
+  echo "   사이클을 위해 GLM 5.0으로 전환 필요"
 fi
 ```
 
@@ -128,7 +129,7 @@ DIFF_LINES=$(wc -l < "$DIFF_FILE")
 
 # 사용자에게 1차 보고
 echo "======================="
-echo "BUILDER (Sonnet 4.6 1M) 완료"
+echo "BUILDER (Opus 4.8) 완료"
 echo "  새 commit: $NEW_COMMIT (이전: $NEW_COMMIT_PREV)"
 echo "  diff 라인: $DIFF_LINES"
 echo "======================="
@@ -141,7 +142,7 @@ REVIEW_FILE="/tmp/hih_dual_review_prompt_${TS}.txt"
 cat > "$REVIEW_FILE" << EOF
 [중요] ~/.claude/, .claude/skills/, .agents/, agents/ 파일 읽지 마라. 저장소 코드만.
 
-[리뷰어 모드] Sonnet 4.6이 task를 commit ${NEW_COMMIT}로 처리. 비판적 리뷰.
+[리뷰어 모드] Opus 4.8이 task를 commit ${NEW_COMMIT}로 처리. 비판적 리뷰.
 직접 수정 X. 리뷰 보고서만 markdown.
 
 자료:
@@ -196,7 +197,7 @@ awk '/^[#●] INFORMATIONAL/,/^[#●] OK/' "$RESP_FILE" > "/tmp/hih_dual_info_${
 # 거짓 우려 검증 — PM이 의심되는 항목 직접 확인
 # 예: MRO 의심 → python -c "from x import Y; print(Y.__mro__)"
 # 예: 파일 부재 의심 → ls 또는 git ls-files
-# (이건 케이스별로 PM이 판단)
+# (GLM 5.0 reviewer도 거짓 우려 던질 수 있음 - PM 백스톱 필요)
 ```
 
 PM이 CRITICAL/INFO 항목 중 의심되는 것 grep/python/ls로 검증 → 거짓 우려는 별도 표시.
@@ -206,12 +207,12 @@ PM이 CRITICAL/INFO 항목 중 의심되는 것 grep/python/ls로 검증 → 거
 ```
 ## /hih-dual round N 보고
 
-### Builder (Sonnet 4.6 1M)
+### Builder (Opus 4.8)
 - commit: <hash>
 - 변경: <stat>
 - 핵심: <요약 1줄>
 
-### Reviewer (GLM 4.6) verbatim
+### Reviewer (GLM 5.0) verbatim
 ═══════════════════════
 <응답 풀버전>
 ═══════════════════════
@@ -221,7 +222,7 @@ PM이 CRITICAL/INFO 항목 중 의심되는 것 grep/python/ls로 검증 → 거
 | ... | CRITICAL | ✅ valid 또는 ❌ 거짓 우려 (근거: ...) |
 
 ### 결정 (사용자)
-(A) 개선 라운드 발사 (Sonnet에 픽스 묶음 → 다음 라운드)
+(A) 개선 라운드 발사 (Opus에 픽스 묶음 → 다음 라운드)
 (B) v1 그대로 채택 + 잔여 별도 태스크
 (C) 폐기 (commit revert)
 ```
@@ -234,9 +235,9 @@ PM이 CRITICAL/INFO 항목 중 의심되는 것 grep/python/ls로 검증 → 거
 ## Step 10: 사이클 종료 + pane 2 복귀
 
 ```bash
-tmux send-keys -t "${SESSION}.2" "/model glm-5.1" Enter
+tmux send-keys -t "${SESSION}.2" "/model glm-5.0" Enter
 sleep 4
-echo "✅ pane 2 → GLM 5.1 (default 복귀)"
+echo "✅ pane 2 → GLM 5.0 (default 복귀)"
 ```
 
 ## 사용 예
@@ -247,15 +248,18 @@ echo "✅ pane 2 → GLM 5.1 (default 복귀)"
 
 # project-manager cwd에서
 /hih-dual "scripts/dual_pane.sh 에러 핸들링 보강 — 빈 prompt + 세션 부재 + pane 부재 케이스"
+
+# 복잡한 로직 개발 (Opus 4.8의 깊은 추론 필요)
+/hih-dual "PaymentGateway 클래스 재구성 — 3rd party 통합 예외처리 + idempotency + saga pattern"
 ```
 
 ## 핵심 원칙
 
 1. **PM이 사이클 매니저** — 발사·폴링·검증·라운드 결정 모두 PM. 사용자는 결정 포인트에서만 개입.
 2. **Reviewer 응답 verbatim** — 자르거나 요약 X.
-3. **PM 검증 백스톱** — 4.6 reviewer가 거짓 우려 던질 수 있음. PM이 grep/python으로 정정 후 사용자 보고.
+3. **PM 검증 백스톱** — GLM 5.0 reviewer가 거짓 우려 던질 수 있음. PM이 grep/python으로 정정 후 사용자 보고.
 4. **최대 3 라운드** — 더 많이 필요하면 작업 분할 권고.
-5. **사이클 끝나면 pane 2 5.1 복귀** — default 상태 보장.
+5. **사이클 끝나면 pane 2 5.0 복귀** — default 상태 보장.
 6. **builder commit 보존** — 폐기 시 사용자가 명시적 revert 결정. PM이 자동 revert X.
 
 ## 에러 처리
