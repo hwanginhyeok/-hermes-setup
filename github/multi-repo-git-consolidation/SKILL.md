@@ -211,6 +211,104 @@ diff ~/.hermes/config.yaml /path/to/hermes-eval/.hermes/config.yaml
 - **scripts/git-status-scan.sh** - Automated script for scanning and aggregating git status across repos
 - **scripts/resolve-rebase-conflict.sh** - Helper script for automated conflict resolution during rebase
 
+---
+
+## Appendix: Hermes 스킬 동기화
+
+이 섹션은 `hermes-skills-sync` 스킬에서 흡수되었습니다.
+
+### 문제 정의
+
+**증상**: 노트북에서 `git pull`해도 스킬이 업데이트되지 않음, gstack 스킬 버전이 머신마다 다름
+
+**원인**: `~/.hermes/skills/`가 Git 레포지토리가 아님, gstack 업데이트(`~/.claude/skills/gstack`)와 Hermes 스킬(`~/.hermes/skills/`)이 분리
+
+### 해결 방안: 싱글 소스 오브 트루스
+
+**전체 환경 동기화** (권장):
+```
+GitHub 레포: hermes-setup
+  ├─ skills/ (gstack-*, hih-*, project-management/)
+  ├─ config.yaml (설정 템플릿)
+  ├─ SOUL.md (페르소나)
+  ├─ skins/ (gothic-neon, hanbok, fantasy)
+  └─ README.md
+```
+
+### gstack 업데이트 → 동기화 (실증된 워크플로우)
+
+```bash
+# 1. gstack 레포 업데이트
+cd ~/.claude/skills/gstack
+git pull origin main
+
+# 2. 기존 gstack 스킬 백업
+mv ~/.hermes/skills/gstack-* ~/.hermes/skills/backup/
+
+# 3. 새로운 gstack 스킬 복사
+cp -r .agents/skills/gstack-* ~/.hermes/skills/
+
+# 4. Git 커밋 및 푸시
+cd ~/.hermes/skills
+git add gstack-*
+git commit -m "chore: gstack 업데이트 (v{NEW_VER})"
+git push origin main
+```
+
+**실증 사례** (2026-05-17): v1.34.1.0 → v1.39.2.0 업데이트, 139 files, 8211+ insertions
+
+### 충돌 방지 규칙
+
+1. **gstack 스킬은 수정 금지**: 업스트림이므로 직접 수정 X
+2. **커밋 메시지 규약**: `chore:`, `feat:`, `fix:`, `docs:` 접두사 사용
+3. **동시 작업 회피**: 데스크톱에서 업데이트 후 노트북에서 바로 pull X
+
+### GitHub Push Protection 해결 (2026-05-17)
+
+**증상**: `GH013: Repository rule violations found for refs/heads/main. Push cannot contain secrets`
+
+**해결**:
+```bash
+cd ~/.hermes/skills
+git rm -rf profiles/
+git reset --soft HEAD~1
+git add .
+git commit -m "feat: 환경 설정 통합"
+git push -u origin main
+```
+
+**핵심 교훈**: `.gitignore`에 추가만 하면 안됨 - `git rm`으로 이미 커밋된 파일 제거 필요
+
+---
+
+## Appendix: GitHub Repository Naming
+
+이 섹션은 `github-repo-naming` 스킬에서 흡수되었습니다.
+
+### Issue
+
+**Repository naming conflict with hyphen prefix**:
+- Desired: `hermes-setup`
+- Actual: `-hermes-setup` (hyphen prefix required)
+
+### Root Cause
+
+GitHub reserved naming conflicts when certain names are already taken.
+
+### Resolution
+
+1. **Accept hyphen prefix**: `git remote add origin https://github.com/hwanginhyeok/-hermes-setup.git`
+
+2. **Document clearly in README**: Add note about hyphen prefix
+
+3. **Update documentation**: All clone instructions include hyphen prefix
+
+### Best Practices
+
+1. **Check availability first**: GitHub API로 미리 확인
+2. **Have backup names ready**: Primary, Backup 1, Backup 2
+3. **Document naming decisions**: README, setup scripts, 팀에 공유
+
 ## Examples
 
 ### Complete PM Git Consolidation (End-to-End)

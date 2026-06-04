@@ -646,6 +646,125 @@ hermes config edit
 # Or resume with explicit profile: hermes --profile pm --resume
 ```
 
+### Adding Custom Providers to config.yaml
+**Use case:** Add new LLM providers (Codex, Opus, etc.) to Hermes config
+
+**Config structure:** `custom_providers` is a YAML **list**, not a dict. Each provider entry uses hyphens.
+
+**Example:**
+```yaml
+custom_providers:
+- name: zai-glm
+  base_url: https://api.z.ai/api/anthropic
+  key_env: Z_AI_API_KEY
+  api_mode: anthropic_messages
+- name: codex
+  base_url: https://api.openai.com
+  key_env: OPENAI_API_KEY
+  api_mode: openai_chat
+  model: gpt-4o-5.5-preview
+- name: opus
+  base_url: https://api.anthropic.com
+  key_env: ANTHROPIC_API_KEY
+  api_mode: anthropic_messages
+  model: claude-opus-4-8
+```
+
+**Key fields:**
+- `name`: Provider identifier (used with `--provider` flag)
+- `base_url`: API endpoint URL
+- `key_env`: Environment variable name for API key (do NOT hardcode keys!)
+- `api_mode`: API protocol (`anthropic_messages`, `openai_chat`, etc.)
+- `model`: Default model for this provider (optional, can override at runtime)
+
+**Pitfall:** `custom_providers` must be a list with hyphens. Using dict format (`name: value`) will cause parse errors.
+
+**Verification:**
+```bash
+# Validate config syntax
+hermes config check
+
+# List available providers
+hermes config show | grep -A 20 custom_providers
+
+# Test provider
+hermes chat -q "Test" --provider codex
+```
+
+### Multi-Machine Hermes Sync via Git
+
+**Use case:** Maintain identical Hermes environments across multiple machines (PC + laptop).
+
+**Repository structure:**
+```
+hermes-sync/
+├── skills/           # Git-tracked skills (~/.hermes/skills/ → symlink)
+├── config.yaml       # Environment config template
+├── SOUL.md          # Persona
+└── skins/           # Custom themes
+```
+
+**Setup on source machine:**
+```bash
+cd ~/.hermes/skills
+git init
+git add .
+git commit -m "Initial skills sync"
+
+# Create GitHub repo: https://github.com/new
+git remote add origin https://github.com/<user>/<repo>.git
+git branch -M main
+git push -u origin main
+```
+
+**Pitfall - GitHub Secret Scanning:**
+- **Symptom:** Push fails with "Push cannot contain secrets" error
+- **Root cause:** Committed files contain API keys in profiles/, .env, auth.json
+- **Fix:** Remove sensitive directories before committing:
+  ```bash
+  git rm -rf profiles/
+  echo "profiles/" >> .gitignore
+  git add .gitignore
+  git commit --amend --no-edit
+  git push --force
+  ```
+
+**Setup on target machine:**
+```bash
+cd ~
+git clone https://github.com/<user>/<repo>.git hermes-sync
+
+# Symlink skills to Hermes home
+ln -sf $(pwd)/hermes-sync ~/.hermes/skills
+
+# Copy environment configs (personalize after)
+cp hermes-sync/config.yaml ~/.hermes/
+cp hermes-sync/SOUL.md ~/.hermes/
+cp -r hermes-sync/skins/* ~/.hermes/skins/
+
+# Add personal API keys to ~/.hermes/.env
+vi ~/.hermes/.env  # Add: OPENROUTER_API_KEY, ANTHROPIC_API_KEY, etc.
+```
+
+**Updating across machines:**
+```bash
+# On source machine: commit and push
+cd ~/.hermes/skills
+git add .
+git commit -m "Update skills"
+git push
+
+# On target machine: pull changes
+cd ~/.hermes/skills
+git pull
+```
+
+**Best practices:**
+- Use symlink for skills/ to avoid duplication
+- Keep API keys in .env (never commit)
+- Profile-specific configs: clone and modify per machine
+- Sync frequency: weekly or after major skill updates
+
 ### Profile Config Not Applied
 **Symptom:** Profile settings exist but daemon uses global config instead
 
@@ -689,6 +808,80 @@ ps aux | grep hermes | grep -v grep
 2. `hermes skills config` — check platform enablement
 3. Load explicitly: `/skill name` or `hermes -s name`
 
+### Verifying External AI Provider CLI Availability
+**Use case**: User claims to have seen a CLI for a provider (xAI, Groq, etc.) but you can't find it.
+
+**Investigation workflow** (systematic verification):
+
+1. **Check if already installed**:
+   ```bash
+   which <cli-name> || echo "CLI not found"
+   ```
+
+2. **Search PyPI for provider packages**:
+   - pip search is deprecated, use PyPI API directly
+   - Check common naming patterns: `<provider>-cli`, `<provider>-api`, `<provider>-sdk`
+
+3. **Check specific packages via PyPI API**:
+   ```bash
+   curl -s https://pypi.org/pypi/<package>/json
+   # Key fields: info.version, info.summary, entry_points
+   # Look for console_scripts in entry_points
+   ```
+
+4. **Verify CLI entry points**:
+   - Look for `console_scripts` in package metadata
+   - If missing → SDK-only, no CLI
+   - Example found → inspect commands
+
+5. **Inspect package structure** (download and extract):
+   ```bash
+   wget -q -O /tmp/package.tar.gz <wheel-url>
+   tar -xzf /tmp/package.tar.gz -C /tmp
+   find /tmp/package/ -name "*.py" | head -20
+   # Check for CLI entry points in pyproject.toml or setup.cfg
+   ```
+
+**Common patterns discovered**:
+- **xAI Grok**: No official CLI, only OpenAI-compatible API + community SDK (xai-grok v0.0.1)
+- **Groq**: Python SDK available, no dedicated CLI
+- **OpenAI**: SDK + official CLI (`openai` command)
+- **Anthropic**: SDK + CLI (`anthropic` command)
+
+**Pitfalls to avoid**:
+- Don't assume provider has CLI just because user saw it somewhere
+- Distinguish between SDK and CLI (SDK ≠ CLI)
+- Check entry_points metadata specifically — a package can have SDK without CLI
+- Verify package author/source (community vs official)
+
+**Conclusion template**:
+```
+✅ CLI found: <command>
+❌ CLI not found, only SDK
+✅ Official CLI available via: <install-command>
+```
+
+### Skill call monitoring limitation
+**Finding (2026-06-01)**: Hermes logs do NOT explicitly log skill calls. Investigation of `~/.hermes/logs/agent.log` and `~/.hermes/logs/gateway.log` for patterns like "skill", "SlashCommand", "/hih-" shows no explicit skill invocation records.
+
+**What IS logged**:
+- General agent loop messages (OpenAI client created/closed, tool calls)
+- Gateway platform events (message receipts, errors)
+- System-level operations
+
+**What is NOT logged**:
+- Specific skill names when invoked via `/skill-name`
+- Slash command usage patterns
+- Skill loading/unloading events
+- Skill call timestamps
+
+**Workarounds**:
+1. Use `session_search` to search past conversations for skill usage
+2. Check skill usage indirectly through tool call patterns in logs
+3. For scheduled skill-based automation, implement custom logging within the skill itself
+
+**Note**: This is a current limitation of Hermes logging architecture, not a configuration issue. Future sessions should be aware that explicit skill call tracking requires custom implementation.
+
 ### Gateway issues
 Check logs first:
 ```bash
@@ -708,7 +901,7 @@ Common gateway problems:
    - `config.yaml` → `model.provider: custom` + `providers.custom.base_url`
    - Environment variables: `OPENAI_BASE_URL` + `OPENAI_API_KEY`
 3. **Workarounds** (in order of reliability):
-   - Update Hermes: `hermes update` (session was 251 commits behind)
+   - Update Hermes: `hermes update` (session was 1026 commits behind - resolved after update)
    - Use OpenRouter's local-equivalent models (they host qwen2.5:3b, llama3.2, etc.)
    - Use llama.cpp GGUF server instead of Ollama
 4. **Debugging**: Check logs to confirm routing issue:
@@ -717,6 +910,36 @@ Common gateway problems:
    # Expected: "Provider: custom  Endpoint: http://localhost:11434/v1"
    # Actual (bug): "Provider: custom  Endpoint: https://openrouter.ai/api/v1"
    ```
+
+### Hermes Cron & Gateway Setup
+**User environment**: WSL2, tmux-based multi-session workflow
+
+**Gateway persistence**:
+- Gateway must run for cron jobs to fire automatically
+- **Recommended**: Run gateway in tmux hermes session pane1 for persistence
+  ```bash
+  # open-all.sh configuration:
+  # hermes:1.1 → hermes gateway run (foreground)
+  # hermes:1.2 → hermes chat (commands)
+  ```
+- Check status: `hermes gateway status`
+- Start if stopped: `hermes gateway run`
+
+**Cron job migration** (system crontab → Hermes cron):
+- Advantage: Automatic execution, delivery to local/origin
+- Create job: `hermes cron create "0 */6 * * *" "Task description" --name "Job Name" --script "script.sh" --no-agent --deliver "origin"`
+- List jobs: `hermes cron list`
+- **Note**: Scripts must be in `~/.hermes/scripts/` with relative filename
+- **Migration pattern**:
+  1. Copy script to `~/.hermes/scripts/`
+  2. Create Hermes cron job
+  3. Remove from system crontab (optional)
+  4. Verify with `hermes cron list`
+
+**Delivery targets**:
+- `origin`: Send to PM/session origin (for alerts)
+- `local`: Log to local files only
+- `telegram`, `discord`, etc.: Platform-specific delivery
 
 ### Display Preferences (User-Specific)
 - **Light mode terminals**: User prefers dark text output (currently: gothic-neon skin with bright colors)
@@ -736,7 +959,7 @@ hermes config set auxiliary.vision.model <model_name>
 
 ---
 
-## Where to Find Things
+### Where to Find Things
 
 | Looking for... | Location |
 |----------------|----------|
@@ -745,6 +968,8 @@ hermes config set auxiliary.vision.model <model_name>
 | Slash commands | `/help` in session or [Slash commands reference](https://hermes-agent.nousresearch.com/docs/reference/slash-commands) |
 | Skills catalog | `hermes skills browse` or [Skills catalog](https://hermes-agent.nousresearch.com/docs/reference/skills-catalog) |
 | Provider setup | `hermes model` or [Providers guide](https://hermes-agent.nousresearch.com/docs/integrations/providers) |
+| Groq provider | `references/groq-provider-guide.md` - Fast LPU inference, Llama models, Whisper |
+| xAI Grok vs Groq | `references/xai-grok-vs-groq-guide.md` - Common confusion, integration guide |
 | Platform setup | `hermes gateway setup` or [Messaging docs](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/) |
 | MCP servers | `hermes mcp list` or [MCP guide](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp) |
 | Profiles | `hermes profile list` or [Profiles docs](https://hermes-agent.nousresearch.com/docs/user-guide/profiles) |

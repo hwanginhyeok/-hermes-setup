@@ -13,7 +13,8 @@ User has a **hybrid cron infrastructure** with three execution mechanisms. Alway
 
 | Type | Purpose | Status Check | Log Location |
 |------|----------|--------------|--------------|
-| **Hermes cron** | AI-driven scheduled tasks (via `cronjob` tool) | `cronjob action=list` | Delivered to target (local/email) |
+| **Hermes cron** | AI-driven scheduled tasks (via `hermes cron`) | `hermes cron list` | Delivered to target (local/email) |
+| **Hermes Gateway** | REQUIRED for Hermes cron to work | `hermes gateway status` | `~/.hermes/logs/gateway.log` |
 | **crontab** | Traditional Unix scheduled jobs | `crontab -l` | `~/.pm_logs/<name>.log` |
 | **systemd timers** | Service-level recurring tasks | `systemctl --user list-units --type=service` | `journalctl -u <service>` |
 
@@ -23,26 +24,38 @@ User has a **hybrid cron infrastructure** with three execution mechanisms. Alway
 
 When asked to verify cron execution status:
 
-1. **List all Hermes cron jobs**
+1. **Check Hermes Gateway status** (CRITICAL - Hermes cron won't work without it)
    ```bash
-   cronjob action=list
+   hermes gateway status
+   # If "not running": Hermes cron jobs won't fire
+   # Start with: tmux new -s hermes 'hermes gateway run'
+   ```
+
+2. **List all Hermes cron jobs**
+   ```bash
+   hermes cron list
    ```
    Check: `next_run_at`, `last_run_at`, `last_status`
+   
+   **⚠️ Common issue**: Gateway not running = jobs don't execute
+   - System cron (crontab) works independently
+   - Hermes cron requires `hermes gateway run` in background
+   - Check logs show "Gateway is not running" → jobs won't fire
 
-2. **List traditional crontab**
+3. **List traditional crontab**
    ```bash
    crontab -l
    ```
    Look for: scheduled commands, log file paths
 
-3. **Check crontab logs** (log pattern: `~/.pm_logs/<name>.log`)
+4. **Check crontab logs** (log pattern: `~/.pm_logs/<name>.log`)
    ```bash
    tail -50 ~/.pm_logs/be_a_studio_daily.log
    # or search by date
    grep "2026051[0-9]" ~/.pm_logs/be_a_studio_daily.log
    ```
 
-4. **Check systemd services** (if applicable)
+5. **Check systemd services** (if applicable)
    ```bash
    systemctl --user list-units --type=service
    systemctl --user status <service-name>
@@ -52,14 +65,31 @@ When asked to verify cron execution status:
 
 ## Current Cron Inventory
 
-### Hermes Cron (1 job)
-- **gstack 자동 업데이트** (0346a5f2559c)
-  - Schedule: Daily 06:00
-  - Script: `bash ~/.hermes/skills/gstack-update.sh`
-  - Mode: no_agent=true (script only, no LLM)
-  - Status: Active, never executed yet
+### Hermes Cron (7 jobs as of 2026-05-20)
 
-### Crontab Jobs (20+ jobs)
+**Critical**: All Hermes cron jobs require `hermes gateway run` to be active.
+
+| Job Name | Schedule | Script | Deliver | Purpose |
+|----------|----------|--------|---------|---------|
+| gstack 자동 업데이트 | 0 6 * * * | gstack-update.sh | local | Update gstack skills |
+| 인프라 모니터링 | 0 */6 * * * | infra_monitor.sh | origin | C drive/WSL2 monitoring |
+| 주식부자 시황 KR | 13 * * * * | stock_news_kr.sh | local | Korean market news |
+| 주식부자 시황 US | 43 * * * * | stock_news_us.sh | local | US market news |
+| 주식부자 모닥 브리핑 | 0 6 * * * | stock_briefing_morning.sh | local | Morning briefing |
+| 주식부자 이브닝 브리핑 | 0 18 * * * | stock_briefing_evening.sh | local | Evening briefing |
+| be-a-studio 일간 작업 | 30 5 * * * | bea_daily.sh | local | Daily content pipeline |
+
+**⚠️ Check**: `hermes gateway status` - if not running, jobs won't fire
+**Start**: `tmux send-keys -t hermes:1.1 'hermes gateway run' Enter` or run via `open-all.sh`
+
+**Migration note**: These jobs were migrated from system crontab to Hermes cron for better monitoring and alerting. Original crontab entries have been removed.
+
+### Crontab Jobs (remaining after Hermes cron migration)
+
+**Migration to Hermes cron completed 2026-05-20**: The following jobs remain in system crontab because they either:
+- Are not yet migrated to Hermes cron
+- Have external dependencies that work better with crontab
+- Need to run even if Hermes Gateway is down
 
 #### Project Manager
 - Daily report: 07:00 (`daily_report.py`)
@@ -149,16 +179,53 @@ Common log patterns:
 ### 1. Assuming systemd for everything
 Be:A Studio uses **crontab**, not systemd. Always check `crontab -l` before assuming systemd services exist.
 
-### 2. Missing Hermes cron status
-Hermes cron jobs are separate from crontab. Use `cronjob action=list` to see Hermes-managed jobs (currently only gstack auto-update).
+### 2. Missing Hermes cron status / Gateway confusion
+Hermes cron jobs are separate from crontab. Use `hermes cron list` to see Hermes-managed jobs (currently only gstack auto-update).
+
+**⚠️ CRITICAL**: Hermes cron **requires Gateway running** to execute jobs.
+- System cron (crontab) works independently via cron daemon
+- Hermes cron requires `hermes gateway run` in background
+- Check: `hermes gateway status` → "not running" means jobs won't fire
+- Start in tmux for persistence: `tmux new -s hermes 'hermes gateway run'`
+
+**Common confusion**: User expects Hermes cron jobs to run automatically, but Gateway is not running.
 
 ### 3. Silent failures in crontab
 Crontab jobs redirect to logs but don't notify on failure. **Always check the log file** to verify execution, not just that the cron exists.
 
-### 4. Segfault recovery required
+### 4. Don't trust memory about cron failures
+**CRITICAL:** Memory descriptions of cron failures (e.g., "Segfault", "crashes") may be outdated. Always verify actual execution:
+- Check recent log timestamps (log files may be weeks old = job not running)
+- Check `crontab -l` to confirm job is actually registered
+- Check file permissions (`ls -la script.py` - should be 755 for executables)
+
+**False positive example:** Memory said "enrich_news.py Segfault" but investigation revealed:
+- No recent logs (3 weeks old)
+- No cron entry registered
+- Wrong permissions (664 instead of 755)
+- **Actual issue:** Job wasn't running at all, not a Segfault
+
+### 5. Segfault recovery required
 Be:A Studio's daily job **requires manual re-execution** when it segfaults. Checking the log alone won't fix it—re-run the script.
 
-### 5. Timezone confusion
+### 6. Script path requirements for Hermes cron
+Hermes cron only accepts **relative paths** under `~/.hermes/scripts/`. Absolute paths will fail with:
+```
+Script path must be relative to ~/.hermes/scripts/. Got absolute or home-relative path: '/absolute/path'
+```
+
+**Fix**: Copy script to `~/.hermes/scripts/` and use filename only:
+```bash
+cp /path/to/script.sh ~/.hermes/scripts/
+hermes cron create "0 2 * * *" "desc" --script "script.sh"
+```
+
+### 7. Deliver target selection
+- Use `deliver=origin` for alerts requiring PM attention (disk space, critical failures)
+- Use `deliver=local` for routine logging (news collection, briefings)
+- `origin` sends to PM session, `local` only writes to logs
+
+### 8. Timezone confusion
 User's crontab uses **UTC for scheduling** but logs show KST times in comments. Check both:
 - Schedule in crontab: `30 5 * * *` = 05:30 UTC
 - Log comments: `# Be:A Studio 일일 콘텐츠 수집 (매일 05:30)` = 05:30 KST
@@ -166,6 +233,22 @@ User's crontab uses **UTC for scheduling** but logs show KST times in comments. 
 ---
 
 ## Common Tasks
+
+### Add new Hermes cron job
+```bash
+# Script must be in ~/.hermes/scripts/
+hermes cron create "0 */2 * * *" "작업 설명" --name "작업명" --script "script.sh" --no-agent --deliver "origin"
+```
+
+**Deliver targets**:
+- `origin`: Send to PM session (for alerts requiring action)
+- `local`: Log only (no notification)
+- `telegram`: Send to Telegram via pm-bot
+
+**Script requirements**:
+- Must be in `~/.hermes/scripts/` (relative path only)
+- Absolute paths will fail
+- Use `--no-agent` for scripts without LLM involvement
 
 ### Add new crontab job
 ```bash

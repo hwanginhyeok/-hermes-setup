@@ -152,6 +152,162 @@ Pick the closest existing category. Don't invent new top-level categories casual
 
 7. **Linking to skills that don't exist in-repo.** `related_skills: [some-user-local-skill]` works for you but breaks for other clones. Prefer only in-repo links.
 
+8. **Patch fails on complex YAML frontmatter.** `skill_manage(action='patch')` can fail with "malformed patch" or YAML parsing errors when:
+   - Frontmatter contains multi-line strings with quotes (e.g., `description: "Use when \"XYZ\"...`)
+   - Old/new_string includes YAML frontmatter sections
+   - Frontmatter has special formatting (colons, dashes, brackets) that confuse diff parser
+   
+   **Workaround:** For edits involving frontmatter or complex YAML, use `skill_manage(action='edit')` or `write_file` to rewrite the full SKILL.md instead of patching. Only use `patch` for body-only changes (text after the closing `---`).
+
+## Skill Review and Audit
+
+When reviewing a collection of skills for quality, consistency, and maintenance issues, use this systematic framework. A **reusable Python template** is available at `references/skill-review-template.py`.
+
+### 1. Automated Health Check
+
+Quick scan using the template:
+```bash
+python3 ~/.hermes/skills/software-development/hermes-agent-skill-authoring/references/skill-review-template.py --pattern "hih-*"
+```
+
+Or inline for targeted checks:
+
+```python
+#!/usr/bin/env python3
+from pathlib import Path
+import re
+
+skills_dir = Path("~/.hermes/skills").expanduser()
+
+# Basic stats
+for skill_path in sorted(skills_dir.glob("hih-*")):
+    skill_md = skill_path / "SKILL.md"
+    if not skill_md.exists():
+        print(f"❌ {skill_path.name}: No SKILL.md")
+        continue
+    
+    content = skill_md.read_text()
+    lines = len(content.split('\n'))
+    
+    # Frontmatter check
+    if not content.startswith('---'):
+        print(f"⚠️  {skill_path.name}: Missing YAML frontmatter")
+    
+    # Naming consistency
+    frontmatter_match = re.search(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if frontmatter_match:
+        fm = frontmatter_match.group(1)
+        if f"name: {skill_path.name}" not in fm:
+            print(f"⚠️  {skill_path.name}: Folder name != frontmatter name")
+```
+
+### 2. Common Issue Categories
+
+**CRITICAL (Functional Errors)**
+- Folder name ≠ frontmatter `name:` field
+- Missing YAML frontmatter entirely
+- Description > 1024 chars (validator will reject)
+
+**HIGH (Maintainability)**
+- File > 300 lines (consider splitting into `references/` or `scripts/`)
+- Hardcoded bash scripts in body (move to `scripts/`)
+- Duplicate content across multiple skills
+
+**MEDIUM (Standardization)**
+- Missing `allowed-tools:` field
+- Missing `user_invocable:` field
+- No "Use when:" or "사용 타이밍:" trigger
+- Inconsistent section structure
+
+**LOW (Polish)**
+- Missing `version:` / `author:` / `license:` (not enforced but peer-standard)
+- Empty `related_skills:` when related skills exist
+- Weak description (doesn't start with trigger class)
+
+### 3. Refactoring Patterns
+
+**Splitting Large Skills (>300 lines)**
+
+```
+skill-name/
+├── SKILL.md          # Core: overview, when-to-use, pitfalls
+├── scripts/
+│   └── helper.py     # Complex logic extracted
+└── references/
+    └── api-notes.md  # Session-specific docs, API quirks
+```
+
+Before:
+```markdown
+## Step 3: Complex Bash Loop
+
+```bash
+# 50 lines of bash here
+```
+```
+
+After:
+```markdown
+## Step 3: Complex Bash Loop
+
+```bash
+scripts/skill-name/setup-env.sh
+```
+
+See `scripts/setup-env.sh` for implementation details.
+```
+
+**Standardizing Frontmatter**
+
+Minimum viable:
+```yaml
+---
+name: skill-name
+description: Use when <trigger>. <one-line>.
+user_invocable: true
+---
+```
+
+Full peer-matched:
+```yaml
+---
+name: skill-name
+description: Use when <trigger>. <one-line>.
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+metadata:
+  hermes:
+    tags: [short, tags]
+    related_skills: [other-skill]
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+---
+```
+
+### 4. Review Prioritization
+
+Use P0/P1/P2/P3 framework for action items:
+
+- **P0 (Immediate)**: CRITICAL issues that break functionality (15-30 min)
+- **P1 (Weekly)**: HIGH issues impacting maintainability (1-2 hours)
+- **P2 (Monthly)**: MEDIUM standardization gaps (30 min)
+- **P3 (Time-permitting)**: LOW polish items (20 min)
+
+### 5. Review Checklist Per Skill
+
+- [ ] Folder name matches `name:` in frontmatter
+- [ ] YAML frontmatter present and valid
+- [ ] `description` ≤ 1024 chars
+- [ ] `allowed-tools` specified (if applicable)
+- [ ] "Use when:" or equivalent trigger present
+- [ ] File ≤ 300 lines (or split plan exists)
+- [ ] No hardcoded scripts in body (moved to `scripts/`)
+- [ ] `## Common Pitfalls` section exists
+- [ ] `related_skills` references are accurate
+
 ## Verification Checklist
 
 - [ ] File is at `skills/<category>/<name>/SKILL.md` (not in `~/.hermes/skills/`)
@@ -159,7 +315,7 @@ Pick the closest existing category. Don't invent new top-level categories casual
 - [ ] `name`, `description`, `version`, `author`, `license`, `metadata.hermes.{tags, related_skills}` all present
 - [ ] Name ≤ 64 chars, lowercase + hyphens
 - [ ] Description ≤ 1024 chars and starts with "Use when ..."
-- [ ] Total file ≤ 100,000 chars (aim for 8-15k)
+- [ ] Total file ≤ 100,000 chars (aim for 8-15k, max 300 lines before splitting)
 - [ ] Structure: `# Title` → `## Overview` → `## When to Use` → body → `## Common Pitfalls` → `## Verification Checklist`
 - [ ] `related_skills` references resolve in-repo (or are explicitly OK to be user-local)
 - [ ] `git add skills/<category>/<name>/ && git commit` completed on the intended branch

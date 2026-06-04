@@ -31,10 +31,10 @@ Hermes 스킬 저장소(`~/.hermes/skills/`)를 Git으로 관리하여 데스크
 
 ## 아키텍처 이해
 
-### gstack 스킬 흐름
+### 1. gstack 스킬 흐름
 
 ```
-~/.claude/skills/gstack/ (Git 레포)
+~/.claude/skills/gstack (Git 레포)
   └─ .agents/skills/gstack-*/
        ├─ gstack-office-hours/
        ├─ gstack-ship/
@@ -47,21 +47,51 @@ Hermes 스킬 저장소(`~/.hermes/skills/`)를 Git으로 관리하여 데스크
 
 **문제**: `~/.claude/skills/gstack`만 Git으로 관리되고, `~/.hermes/skills/`는 복사본이라 동기화 안됨
 
-### 해결 방안: 싱글 소스 오브 트루스
+### 2. 전체 Hermes 환경 동기화 (2026-05-17 확장)
+
+사용자는 스킬뿐만 아니라 **전체 Hermes 환경**을 PC와 노트북 간 동기화 필요:
 
 ```
-GitHub 레포: hermes-skills
-  ├─ gstack-*/ (46개)
-  ├─ project-management/pm-orchestration/
-  ├─ project-management/parallel-worker-pool/
-  ├─ project-management/hih-task/
-  └─ ... (사용자 스킬 전체)
+GitHub 레포: hermes-setup
+  ├─ skills/ (gstack-*, hih-*, project-management/)
+  ├─ config.yaml (설정 템플릿)
+  ├─ SOUL.md (페르소나)
+  ├─ skins/ (gothic-neon, hanbok, fantasy)
+  └─ README.md
         ↓
     git clone
         ↓
 데스크톱: ~/.hermes/skills/
+        symlink → ~/.hermes/skills
 노트북: ~/.hermes/skills/
+        symlink → ~/.hermes/skills
 ```
+
+**제외 대상 (개인 정보/캐시)**:
+- `profiles/` (PM 프로필: .env, auth.json, sessions/, logs/, state.db*)
+- `backup/`, `*.tmp`, `*.swp`
+- OS 파일: `.DS_Store`, `Thumbs.db`
+
+### 3. 해결 방안: 싱글 소스 오브 트루스
+
+**옵션 A: 스킬만 동기화** (기존)
+```
+GitHub 레포: hermes-skills
+  ├─ gstack-*/ (46개)
+  ├─ project-management/pm-orchestration/
+  └─ ... (사용자 스킬 전체)
+```
+
+**옵션 B: 전체 환경 동기화** (권장, 2026-05-17)
+```
+GitHub 레포: hermes-setup
+  ├─ skills/
+  ├─ config.yaml
+  ├─ SOUL.md
+  └─ skins/
+```
+
+**권장**: 옵션 B 사용 - 스킬 관리가 완벽하고 환경 설정까지 포함
 
 ## 설정 절차
 
@@ -73,7 +103,7 @@ cd ~/.hermes/skills
 # Git 레포 초기화
 git init
 
-# .gitignore 설정
+# .gitignore 설정 (스킬만)
 cat > .gitignore << 'EOF'
 # 백업 파일
 backup/
@@ -87,6 +117,67 @@ backup/
 .DS_Store
 Thumbs.db
 EOF
+```
+
+### 1.1 전체 환경 동기화 (2026-05-17)
+```bash
+cd ~/.hermes/skills
+
+# .gitignore 설정 (전체 환경)
+cat > .gitignore << 'EOF'
+# 백업 파일
+backup/
+
+# 임시 파일
+*.tmp
+*.swp
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 개인 정보 (profiles/)
+profiles/
+EOF
+```
+
+### 1.2 환경 파일 추가
+```bash
+# 설정 파일 복사
+cp ~/.hermes/config.yaml ./
+cp ~/.hermes/SOUL.md ./
+
+# 스킨 복사
+mkdir -p skins
+cp -r ~/.hermes/skins/* ./skins/
+
+# README.md 갱신
+cat > README.md << 'EOF'
+# Hermes 환경 동기화
+
+PC와 노트북 간 Hermes 환경 동기화용 레포지토리.
+
+## 구조
+- `skills/` - gstack + hih + 사용자 스킬
+- `config.yaml` - 환경 설정 템플릿
+- `SOUL.md` - 페르소나
+- `skins/` - 스킨 3종
+
+## 노트북 설정
+```bash
+cd ~
+git clone https://github.com/hwanginhyeok/hermes-setup.git
+
+cd hermes-setup
+ln -sf $(pwd)/skills ~/.hermes/skills
+cp config.yaml ~/.hermes/
+cp SOUL.md ~/.hermes/
+cp -r skins/* ~/.hermes/skins/
+
+# .env는 수동 설정 (개인 정보)
+EOF
+```
 
 # 모든 스킬 추가
 git add .
@@ -105,20 +196,65 @@ git branch -M main
 
 ### 2. GitHub 레포 연결
 
+**옵션 A: 스킬만 레포**
 ```bash
 # GitHub에 'hermes-skills' 레포 생성 후
 git remote add origin https://github.com/hwanginhyeok/hermes-skills.git
 git push -u origin main
 ```
 
+**옵션 B: 전체 환경 레포** (2026-05-17)
+```bash
+# GitHub에 'hermes-setup' 레포 생성 후
+git remote add origin https://github.com/hwanginhyeok/hermes-setup.git
+git push -u origin main
+```
+
+**주의**: 레포명에 하이픈(`-`)이 포함된 경우:
+- 사용자가 `-hermes-setup`으로 생성한 경우, URL 조정 필요
+```bash
+git remote set-url origin https://github.com/hwanginhyeok/-hermes-setup.git
+git push -u origin main
+```
+
+**레포 이름 확인**:
+```bash
+# 사용자의 GitHub 레포 목록 확인
+curl -s "https://api.github.com/users/hwanginhyeok/repos" | grep -o '"name": "[^"]*"'
+```
+
 ### 3. 노트북에서 clone
 
+**옵션 A: 스킬만 동기화**
 ```bash
 # 기존 스킬 백업
 mv ~/.hermes/skills ~/.hermes/skills.backup
 
 # clone
 git clone https://github.com/hwanginhyeok/hermes-skills.git ~/.hermes/skills
+```
+
+**옵션 B: 전체 환경 동기화** (권장)
+```bash
+# 1. 클론
+cd ~
+git clone https://github.com/hwanginhyeok/hermes-setup.git
+
+# 2. 심링크 (스킬)
+cd -hermes-setup
+ln -sf $(pwd)/skills ~/.hermes/skills
+
+# 3. 환경 설정 복사
+cp config.yaml ~/.hermes/
+cp SOUL.md ~/.hermes/
+cp -r skins/* ~/.hermes/skins/
+
+# 4. .env는 수동 설정 (개인 정보 포함)
+# cp .env.template ~/.hermes/.env
+
+# 5. 업데이트
+cd ~/.hermes/skills
+git pull
 ```
 
 ## 업데이트 파이프라인
@@ -348,6 +484,88 @@ git push -u origin main
 - git remote URL 토큰 추출: `ghp_JI...C7BX` (제한된 권한)
 - curl API 호출: "BLOCKED: User denied"
 - 해결: 사용자가 직접 GitHub 웹에서 레포 생성 필요
+
+### 6. GitHub Push Protection: 시크릿 포함으로 푸시 차단 (2026-05-17)
+**증상**:
+```
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Push cannot contain secrets
+remote: - Anthropic API Key (profiles/pm/.env:6)
+remote: - OpenRouter API Key (profiles/pm/auth.json:12)
+! [remote rejected] main -> main (push declined)
+```
+
+**원인**: GitHub Push Protection이 커밋에 포함된 API 키를 탐지하여 푸시 차단
+
+**오프된 접근** (실패):
+```bash
+# .gitignore에 추가만 하면 안됨
+cat >> .gitignore << 'EOF'
+profiles/pm/.env
+profiles/pm/auth.json
+EOF
+
+# 이미 스테이징된 파일은 제거 필요
+git reset --soft HEAD~1  # 이 방식은 실패 - profiles/ 여전히 포함
+git add .
+git commit -m "feat: ..."  # profiles/가 다시 포함됨
+```
+
+**해결**:
+```bash
+cd ~/.hermes/skills
+
+# 1. profiles/ 전체 제거
+git rm -rf profiles/
+
+# 2. .gitignore 업데이트
+cat > .gitignore << 'EOF'
+# 백업 파일
+backup/
+
+# 임시 파일
+*.tmp
+*.swp
+*~
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 개인 정보 (profiles/)
+profiles/
+EOF
+
+# 3. 기존 커밋 제거 후 재커밋
+git reset --soft HEAD~1
+git add .
+git commit -m "feat: 환경 설정 통합
+
+- config.yaml: 환경 설정 템플릿
+- SOUL.md: 페르소나
+- skins/: 스킨 3종
+- README.md: 사용법
+
+PC와 노트북 환경 동기화 목적"
+
+# 4. 푸시
+git push -u origin main
+```
+
+**핵심 교훈**:
+- `.gitignore`에 추가만 하면 안됨 - `git rm`으로 이미 커밋된 파일 제거 필요
+- profiles/ 전체를 제외하는 게 안전 (개인 정보, 세션, 로그, DB 포함)
+- `git reset --soft HEAD~1` + `git rm -rf profiles/` 조합으로 해결
+
+**실증 사례** (2026-05-17):
+- 1차 시도: .gitignore 추가 → profiles/ 여전히 포함됨
+- 2차 시도: `git reset --soft HEAD~1` → profiles/ 그대로 유지
+- 3차 시도: `git rm -rf profiles/` → profiles/ 1,195 files 제거
+- 결과: 9 files만 푸시 성공 (config.yaml, SOUL.md, skins/)
+
+**대안** (시크릿 허용):
+- GitHub 레포에서 시크릿 허용: https://github.com/hwanginhyeok/-hermes-setup/security/secret-scanning
+- 권장하지 않음 - 보안 위험
 
 ## 문제 해결
 

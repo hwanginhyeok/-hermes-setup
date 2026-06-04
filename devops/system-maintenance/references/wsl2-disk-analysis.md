@@ -57,10 +57,36 @@ du -sh /mnt/c/Users/*/AppData/Local/* 2>/dev/null | sort -hr | head -20
 ## WSL2-Specific Solutions
 
 ### Option 1: Compact WSL2 Virtual Disk (Immediate 10-30GB recovery)
+
+**Problem**: WSL2 VHDX files are dynamically expanding but don't auto-shrink. Even after deleting large files inside WSL, the VHDX file on Windows remains at its peak size.
+
+**Example from real case**:
+- WSL internal usage: 60GB / 1007GB (6%)
+- VHDX file size: 77GB
+- **Wasted space: ~17GB** (77GB - 60GB actual usage)
+
+**Root cause**: Every file creation expands VHDX. Deletions inside WSL mark space as free but don't truncate the file.
+
+**Compact procedure**:
+
+```bash
+# Step 1: Zero-fill free space inside WSL (maximize compaction)
+sudo dd if=/dev/zero of=/zero bs=1M || rm -f /zero
+sudo poweroff -f  # WSL will terminate after this
+```
+
 ```powershell
-# From PowerShell (Admin)
+# Step 2: From PowerShell (Admin), compact the VHDX
 wsl --shutdown
-# Navigate to WSL folder and optimize VHDX
+$wslPath = "$env:USERPROFILE\AppData\Local\wsl\{414e88e4-73c6-4efa-ae2d-4cbd08dfabc4}\ext4.vhdx"
+Optimize-VHD -Path $wslPath -Mode Full
+```
+
+**Expected result**: 10-30GB recovery on C drive.
+
+**Note**: The GUID in the path (`{414e88e4-73c6-4efa-ae2d-4cbd08dfabc4}`) varies per installation. Find it with:
+```powershell
+Get-ChildItem "$env:USERPROFILE\AppData\Local\wsl" -Recurse -Filter ext4.vhdx
 ```
 
 ### Option 2: Move WSL2 to Another Drive (Permanent fix)
@@ -234,3 +260,55 @@ stress-ng --cpu 4 --timeout 60s  # May need: sudo apt install stress-ng
 - WSL2 disk > 80GB: Consider cleanup or moving to D drive
 - Python packages > 5GB: Review for unused ML/CUDA packages
 - Repeated Segfault 11 in dmesg: Check C drive space first, then WSL memory config
+
+## C Drive Volatility Analysis
+
+**Symptom**: C drive usage fluctuates significantly (e.g., 81% → 95%+ → 81%) without obvious user activity.
+
+**Diagnostic commands**:
+```bash
+# Quick check
+df -h /mnt/c
+
+# Detailed Windows-side breakdown
+du -sh /mnt/c/Users/*/AppData/Local/* 2>/dev/null | sort -hr | head -20
+
+# WSL2 VHDX actual size
+ls -lh /mnt/c/Users/*/AppData/Local/wsl/*/ext4.vhdx
+```
+
+**Common volatility causes** (in order of frequency):
+
+1. **WSL2 VHDX expansion (77GB+)** - Major factor
+   - VHDX grows with file creation but never shrinks
+   - Even 60GB actual usage can occupy 77GB+ on disk
+   - Solution: Compact VHDX (see Option 1 above)
+
+2. **Windows Temp folder accumulation (25GB+)**
+   - Location: `C:\Users\<username>\AppData\Local\Temp`
+   - Large installers, updates, extracts accumulate
+   - Solution: Periodic cleanup or automated deletion
+
+3. **Windows Update caches**
+   - Can accumulate 5-15GB after updates
+   - Solution: Windows Update cleanup in Settings
+
+4. **Application caches (Chrome, Kakao, etc.)**
+   - Chrome: 4GB+ (AI models, cache)
+   - Kakao: 5GB+
+   - Solution: Clear app caches periodically
+
+**Real-world example**:
+- C drive at 81% (192GB / 238GB used)
+- WSL2 VHDX: 77GB (but only 60GB actual usage)
+- Windows Temp: 25GB
+- Potential recovery: 17GB (VHDX compact) + 20GB (Temp cleanup) = **37GB**
+
+**Automation opportunity**: Add to existing cleanup script (`/home/window11/scripts/cleanup_completed_files.py`):
+```python
+# Add Windows-side cleanup via PowerShell trigger
+subprocess.run([
+    "powershell.exe", "-Command",
+    "Remove-Item -Path '$env:TEMP\\*' -Recurse -Force -ErrorAction SilentlyContinue"
+])
+```

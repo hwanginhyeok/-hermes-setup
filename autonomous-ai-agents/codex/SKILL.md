@@ -27,16 +27,37 @@ Requires the codex CLI and a git repository.
 ## Prerequisites
 
 - Codex installed: `npm install -g @openai/codex`
-- OpenAI auth configured: either `OPENAI_API_KEY` or Codex OAuth credentials
-  from the Codex CLI login flow
+- **OpenAI auth configured**: Codex OAuth credentials (recommended) or `OPENAI_API_KEY`
+  - OAuth: Run `codex login` to authenticate. Stores session in `~/.codex/auth.json`
+  - OAuth works WITHOUT API key — tested 2026-06-02: auth.json alone sufficient
+  - API Key fallback: `export OPENAI_API_KEY="your-key"`
 - **Must run inside a git repository** — Codex refuses to run outside one
 - Use `pty=true` in terminal calls — Codex is an interactive terminal app
+
+**Authentication verification**:
+```bash
+# Check OAuth session
+test -f ~/.codex/auth.json && echo "✅ OAuth authenticated" || echo "❌ No OAuth session"
+
+# Check API key fallback
+test -n "$OPENAI_API_KEY" && echo "✅ API key set" || echo "ℹ️  No API key"
+```
 
 For Hermes itself, `model.provider: openai-codex` uses Hermes-managed Codex
 OAuth from `~/.hermes/auth.json` after `hermes auth add openai-codex`. For the
 standalone Codex CLI, a valid CLI OAuth session may live under
 `~/.codex/auth.json`; do not treat a missing `OPENAI_API_KEY` alone as proof
 that Codex auth is missing.
+
+## Pitfalls
+
+- **Read-only mode**: Codex may operate in read-only mode even with valid auth. If you see
+  "현재 세션이 읽기 전용이라 `file`을 직접 수정할 수 없습니다", it's a Codex limitation,
+  not an auth failure. The proposed changes are still shown.
+- **Missing git repo**: Codex refuses to run outside a git directory. Always ensure
+  `git status` succeeds before invoking codex.
+- **PTY required**: Codex hangs without `pty=true`. Always use it.
+- **OAuth session expired**: If you see auth errors, run `codex login` again to refresh.
 
 ## One-Shot Tasks
 

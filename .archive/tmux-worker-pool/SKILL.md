@@ -31,6 +31,25 @@ cd ~/project-manager
 ./open-all.sh
 ```
 
+### 🔴 Pitfall: split-window -p vs -v
+`split-window -p`는 퍼센트로 분할하지만, 4개 pane을 만들 때 실제로는 2개만 생성되는 문제가 있음. 이유: `-p`가 상대 크기로 계산되면서 누산 오류 발생.
+
+**증상**: 4 pane을 요청했는데 2 pane만 생성됨
+
+**해결**: `split-window -v` 사용 + 명시적 높이 지정
+```bash
+# ❌ 문제: split-window -p
+tmux split-window -p 75 -c ~/be-a-studio  # 첫 번째 분할
+tmux split-window -p 50 -c ~/be-a-studio  # 두 번째 분할 (실제로는 pane 2개만 생성됨)
+
+# ✅ 해결: split-window -v + 명시적 높이
+tmux split-window -v -l 60 -c ~/be-a-studio   # 첫 번째 분할 (60% 높이)
+tmux split-window -v -l 30 -c ~/be-a-studio   # 두 번째 분할 (30% 높이)
+tmux split-window -v -c ~/be-a-studio         # 세 번째 분할 (나머지 10%)
+```
+
+`open-all.sh`의 `create_project_session()` 함수를 수정하여 `-p` 대신 `-v -l` 사용.
+
 ### 중복 세션 문제 해결
 `open-all.sh`는 영문 세션명(`stock`, `insung`, `music`)을 생성하지만, `projects.yaml`은 한글 프로젝트명(`주식부자`, `인성이`, `music-lab`)을 사용합니다. 기존 한글 세션이 있으면 중복 생성됩니다.
 

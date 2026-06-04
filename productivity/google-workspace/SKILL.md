@@ -317,16 +317,36 @@ All commands return JSON. Parse with `jq` or read directly. Key fields:
 5. **Respect rate limits** — avoid rapid-fire sequential API calls. Batch reads when possible.
 
 ## Troubleshooting
+## Troubleshooting
 
+### Check existing credentials first
+**Before creating new OAuth credentials, search for existing tokens:**
+```bash
+# Check Hermes token
+ls -la ~/.hermes/google_token.json
+
+# Check project-specific tokens (common locations)
+ls -la ~/music-lab/token.json
+ls -la ~/project_name/token.json
+ls -la ~/project_name/client_secrets.json
+
+# If found, test if still valid
+python3 ~/.hermes/skills/productivity/google-workspace/scripts/google_api.py gmail search "is:unread" --max 1
+```
+**If existing credentials work**: Skip OAuth creation, use `--check` to verify.
+**If expired or missing**: Proceed with OAuth setup below.
+
+## Troubleshooting
 | Problem | Fix |
 |---------|-----|
 | `NOT_AUTHENTICATED` | Run setup Steps 2-5 above |
 | `REFRESH_FAILED` | Token revoked or expired — redo Steps 3-5 |
-| `HttpError 403: Insufficient Permission` | Missing API scope — `$GSETUP --revoke` then redo Steps 3-5 |
-| `AUTHENTICATED (partial)` or "Token missing scopes" | New write capabilities (Drive write/delete, Docs create/edit) require re-authorization. `$GSETUP --revoke` then redo Steps 3-5 to grant the upgraded scopes. |
+| `HttpError 403: Insufficient Permission` | Missing API scope — `$GSETUP --revoke` then redo Steps 3-5 to grant upgraded scopes. |
+| `AUTHENTICATED (partial)` or "Token missing scopes" | New write capabilities (Drive write/delete, Docs create/edit) require re-authorization. `$GSETUP --revoke` then redo Steps 3-5 to grant upgraded scopes. |
 | `HttpError 403: Access Not Configured` | API not enabled — user needs to enable it in Google Cloud Console |
 | `ModuleNotFoundError` | Run `$GSETUP --install-deps` |
-| Advanced Protection blocks auth | Workspace admin must allowlist the OAuth client ID |
+| Advanced Protection blocks auth | Workspace admin must allowlist OAuth client ID |
+| **WSL/리다이렉트 에러** | OAuth는 포트 서버가 필요 없음. 브라우저 주소창 전체 URL을 복사해서 `--auth-code`에 전달. |
 
 ## Revoking Access
 

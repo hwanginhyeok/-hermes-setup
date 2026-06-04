@@ -117,6 +117,15 @@ PM 세션은 사용자가 터미널에 /clear 직접 입력하세요.
   - 8개 세션 동시 /hih-clear → 메모리 부담
   - 동시 4개씩 나눠 배치도 가능
 
+- **스킬 호출 로깅 부재 (2026-06-01 확인)**:
+  - Hermes logs (~/.hermes/logs/agent.log, gateway.log)는 존재하지만 스킬 호출이 명시적으로 기록되지 않음
+  - 스킬 사용 빈도/시간을 추적하려면 별도 로그 필요
+  - 현재 세션에서 사용된 스킬 확인: `session_search: (스킬 이름)` 또는 현재 세션 기억
+  - 해결책 (개선 필요):
+    - agent.log에 스킬 호출 로그 추가 (스킬 이름 + 타임스탬프)
+    - 실시간 모니터링: `tail -f ~/.hermes/logs/agent.log | grep -i 'skill'`
+    - 통계 대시보드: 스킬 사용 빈도, 시간, 성공률 시각화
+
 ## 자동화 참고
 
 구현 시 shell 스크립트 또는 Python 래퍼로:
@@ -145,8 +154,40 @@ scripts/hih-all-clear.sh
 
 ## 관련 스킬/룰
 
-- `~/.claude/skills/hih-clear` — 단일 세션 정리
-- `~/.claude/skills/hih-task` — 태스크 브리핑
-- `~/.claude/skills/hih-git` — 전체 git 브리핑 + 일괄 push
+- `hih-clear` — 단일 세션 정리
+- `hih-task` — 태스크 브리핑
+- `hih-session-control` — 세션/pane 제어 (새 스킬)
+- `hih-all-task-clear` — 전체 태스크만 일괄 정리
+- `hih-git` — 전체 git 브리핑 + 일괄 push
 - `global-rules/parallel-delegation.md` — 병렬 실행 원칙
 - `global-rules/test-after-change.md` — 자동 테스트 원칙
+
+## 세션/pane 제어
+
+**PM에서 다른 세션의 에이전트를 제어하고 싶을 때**:
+
+```bash
+# 에이전트 시작
+/hih-session-control start-agent bea 2
+
+# 출력 캡처
+/hih-session-control capture stock 1
+
+# 병렬 배정
+/hih-session-control status  # 상태 확인 후 배정
+```
+
+이 스킬을 사용하면 PM에서 tmux send-keys로 다른 세션을 제어하고, 결과를 capture-pane으로 확인할 수 있습니다.
+
+## hih-all-clear vs hih-all-task-clear
+- `global-rules/test-after-change.md` — 자동 테스트 원칙
+
+## hih-all-clear vs hih-all-task-clear
+
+| | hih-all-clear | hih-all-task-clear |
+|---|---|---|
+| **대상** | 전체 (태스크 + git + memory + clear) | 태스크만 |
+| **실행** | /hih-clear 전체 | /hih-task-clear만 |
+| **시간** | 3-5분 | 1-2분 |
+| **세션** | 종료됨 (/clear까지) | 유지됨 |
+| **용도** | 하루 마무리 | 중간 태스크 정리 |
