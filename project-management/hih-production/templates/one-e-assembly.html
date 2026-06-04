@@ -1,0 +1,54 @@
+<!-- One-E (완성품) Assembly Template -->
+<!-- 사용자 색상 테마 기반 (tmux Dark Mono: #000000) -->
+<div class="assy-col" style="border-color:#000000;border-width:3px">
+  <span class="badge" style="background:#000000;color:#fff">최종완성품</span>
+  <div class="assy-title" style="background:#000000;color:#fff">One-E</div>
+  <div class="assy-sub">완성차량 (Speed Sprayer SS500)</div>
+  <div class="assy-count">모든 Sub-Assy 합류 완료</div>
+  
+  <!-- VHA 완료차량 -->
+  <div class="step">
+    <div class="step-sym s-op">○</div>
+    <div class="step-txt">VHA 완료차량</div>
+  </div>
+  
+  <!-- EOL 기능검사 -->
+  <div class="step">
+    <div class="step-sym s-insp">□</div>
+    <div class="step-txt">EOL 기능검사 통과</div>
+  </div>
+  
+  <!-- 합/부 판정 -->
+  <div class="step">
+    <div class="step-sym s-decision"></div>
+    <div class="step-txt">합/부 판정 PASS</div>
+  </div>
+  
+  <!-- OQC 외관검사 -->
+  <div class="step">
+    <div class="step-sym s-insp">□</div>
+    <div class="step-txt">OQC 외관검사 통과</div>
+  </div>
+  
+  <!-- 출하 포장 -->
+  <div class="step">
+    <div class="step-sym s-op">○</div>
+    <div class="step-txt">출하 포장</div>
+  </div>
+  
+  <!-- 고객 인도 -->
+  <div class="step">
+    <div class="step-sym s-store"></div>
+    <div class="step-txt">고객 인도</div>
+  </div>
+</div>
+
+<!--
+삽입 위치: VHA → EOL → OQC → 출하 흐름 다음
+
+정규식 패턴:
+vha_pattern = r'(</div>\n\n<div style="text-align:center;font-size:1\.5em;color:#0984e3;margin:5px 0">↓</div>)'
+
+수정:
+modified_content = re.sub(vha_pattern, r'\1\n\n<!-- ONE-E ASSEMBLY -->\n' + one_e_html, content)
+-->
