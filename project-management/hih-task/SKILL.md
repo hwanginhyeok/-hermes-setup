@@ -19,6 +19,7 @@ user_invocable: true
 - 간결한 한국어로 브리핑 (모바일 5-15줄 권장)
 - 텔레그램 중계 시 마지막 줄에 `===PM-END===` 마커 단독 라인 출력
 - 긴 내용은 핵심만 추리고 "자세히는 PC에서" 안내
+- **"카리 살려서"** - 토큰 절약을 위해 불필요한 설명 생략, 결과 중심 전달
 
 ## 포트폴리오 구조 원칙
 
@@ -44,6 +45,67 @@ src/pages/cases/{project-slug}/index.astro
 - 탭을 누르면 해당 프로젝트의 웹사이트/데모/문서로 이동
 
 ## 실행 순서
+
+
+## Codex/GLM 리뷰워크플로우
+
+### 용도
+계획 세우기 또는 리뷰할 때 Codex/GLM을 사용하여 독립적인 제2/제3 의견을 받음.
+
+### 전제 조건
+1. Z_AI_API_KEY 설정됨 (GLM용)
+2. Codex CLI 설치됨 (codex)
+3. Git repo 초기화됨
+
+### Step 1: 계획 제안
+```bash
+# 사용자가 "계획 세워봐" 또는 "리뷰해봐" 요청
+# PM이 작업 범위 정의 후 Codex/GLM에 발송
+```
+
+### Step 2: Codex 계획 생성
+```bash
+# pane 1 (Claude Opus) - PM
+TASK_PROMPT="계획 요청: $@"
+codex --prompt "$TASK_PROMPT" --output /tmp/codex_plan.md
+```
+
+### Step 3: GLM 리뷰
+```bash
+# pane 2 (GLM) - 리뷰어
+REVIEW_PROMPT="아래 계획을 리뷰:
+
+$(cat /tmp/codex_plan.md)"
+# GLM 세션에 전송 (tmux send-keys 또는 delegate_task)
+```
+
+### Step 4: PM 비교 검증
+```bash
+# Codex 계획 vs GLM 리뷰 vs PM 의견 비교
+# 충돌 시 사용자에게 질문
+```
+
+### Step 5: 최종 계획 확정
+```bash
+# 3개 의견 종합하여 최종 계획서 작성
+# CURRENT_TASK.md에 반영
+```
+
+### 사용 예
+```bash
+# hih-task에서 계획 요청 시
+/hih-task "Codex/GLM 리뷰: MBD 시뮬레이터 구현 계획"
+
+# 리뷰 요청 시
+/hih-task "GLM 리뷰: commit abc123 diff 분석"
+```
+
+### 모델 선택 가이드
+- **Codex**: 코드 생성 및 기술 계획
+- **GLM 4.6**: 빠른 리뷰 및 의견 (초안)
+- **GLM 5.0**: 깊은 분석 및 비판
+
+
 
 ### 1. 태스크 파일 읽기
 - `TASK.md` — 인덱스
@@ -94,6 +156,67 @@ src/pages/cases/{project-slug}/index.astro
 ```
 
 ## 실행 순서
+
+
+## Codex/GLM 리뷰워크플로우
+
+### 용도
+계획 세우기 또는 리뷰할 때 Codex/GLM을 사용하여 독립적인 제2/제3 의견을 받음.
+
+### 전제 조건
+1. Z_AI_API_KEY 설정됨 (GLM용)
+2. Codex CLI 설치됨 (codex)
+3. Git repo 초기화됨
+
+### Step 1: 계획 제안
+```bash
+# 사용자가 "계획 세워봐" 또는 "리뷰해봐" 요청
+# PM이 작업 범위 정의 후 Codex/GLM에 발송
+```
+
+### Step 2: Codex 계획 생성
+```bash
+# pane 1 (Claude Opus) - PM
+TASK_PROMPT="계획 요청: $@"
+codex --prompt "$TASK_PROMPT" --output /tmp/codex_plan.md
+```
+
+### Step 3: GLM 리뷰
+```bash
+# pane 2 (GLM) - 리뷰어
+REVIEW_PROMPT="아래 계획을 리뷰:
+
+$(cat /tmp/codex_plan.md)"
+# GLM 세션에 전송 (tmux send-keys 또는 delegate_task)
+```
+
+### Step 4: PM 비교 검증
+```bash
+# Codex 계획 vs GLM 리뷰 vs PM 의견 비교
+# 충돌 시 사용자에게 질문
+```
+
+### Step 5: 최종 계획 확정
+```bash
+# 3개 의견 종합하여 최종 계획서 작성
+# CURRENT_TASK.md에 반영
+```
+
+### 사용 예
+```bash
+# hih-task에서 계획 요청 시
+/hih-task "Codex/GLM 리뷰: MBD 시뮬레이터 구현 계획"
+
+# 리뷰 요청 시
+/hih-task "GLM 리뷰: commit abc123 diff 분석"
+```
+
+### 모델 선택 가이드
+- **Codex**: 코드 생성 및 기술 계획
+- **GLM 4.6**: 빠른 리뷰 및 의견 (초안)
+- **GLM 5.0**: 깊은 분석 및 비판
+
+
 
 ### 1. 태스크 파일 읽기
 프로젝트 루트에서:
@@ -187,6 +310,8 @@ src/pages/cases/{project-slug}/index.astro
 - 세션 크래시 복구 진단 상세: `references/pm-session-recovery.md`
 - tmux 워커 풀 오케스트레이션 패턴: `references/tmux-worker-pool.md`
 - PM 근본 원인 분석: 섹션 "PM 근본 원인 분석 (Root Cause Analysis)"
+- tmux Hermes Pane 최적화: `references/tmux-hermes-pane-optimization.md` (2026-06-16)
+- Notion 주간 페이지 생성 Cron 템플릿: `templates/weekly-page-creation-cron.md` (2026-06-16)
 
 ## PM 근본 원인 분석 (Root Cause Analysis)
 
